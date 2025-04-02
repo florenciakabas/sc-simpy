@@ -1,0 +1,26 @@
+{
+  "port_main": {
+    "port_main": 0.0,
+    "location_a": 789.3392892209039,
+    "location_b": 429.75825936951196,
+    "location_c": 654.8919205981142
+  },
+  "location_a": {
+    "port_main": 789.3392892209039,
+    "location_a": 0.0,
+    "location_b": 374.3924406411999,
+    "location_c": 222.2180279301292
+  },
+  "location_b": {
+    "port_main": 429.75825936951196,
+    "location_a": 374.3924406411999,
+    "location_b": 0.0,
+    "location_c": 349.6649988431161
+  },
+  "location_c": {
+    "port_main": 654.8919205981142,
+    "location_a": 222.2180279301292,
+    "location_b": 349.6649988431161,
+    "location_c": 0.0
+  }
+}

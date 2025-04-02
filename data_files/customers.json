@@ -1,0 +1,29 @@
+[
+  {
+    "id": "customer_1",
+    "name": "Manufacturing Plant A",
+    "location": "location_a",
+    "demand_rate": 1000.0,
+    "initial_inventory": 48000.0,
+    "min_inventory": 24000.0,
+    "max_inventory": 120000.0
+  },
+  {
+    "id": "customer_2",
+    "name": "Distribution Center B",
+    "location": "location_b",
+    "demand_rate": 750.0,
+    "initial_inventory": 36000.0,
+    "min_inventory": 18000.0,
+    "max_inventory": 90000.0
+  },
+  {
+    "id": "customer_3",
+    "name": "Processing Facility C",
+    "location": "location_c",
+    "demand_rate": 1200.0,
+    "initial_inventory": 57600.0,
+    "min_inventory": 28800.0,
+    "max_inventory": 144000.0
+  }
+]
