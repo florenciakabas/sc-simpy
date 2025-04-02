@@ -5,6 +5,7 @@ import json
 import os
 import random
 from datetime import datetime
+from data.databricks_client import DatabricksDataSource 
 
 class DataSource(ABC):
     """Abstract base class for data sources."""
@@ -211,46 +212,6 @@ class JsonDataSource(DataSource):
         print(f"Results saved to {file_path}")
 
 
-# We'll implement the Databricks data source later
-class DatabricksDataSource(DataSource):
-    """Data source that reads from Databricks tables using SQLAlchemy."""
-    
-    def __init__(self, connection_string: str):
-        """
-        Initialize with Databricks connection string.
-        
-        Args:
-            connection_string: SQLAlchemy connection string for Databricks
-        """
-        self.connection_string = connection_string
-        # We'll implement the actual connection logic later
-    
-    def get_ships_data(self) -> List[Dict[str, Any]]:
-        """Retrieve ships configuration data."""
-        # Placeholder - will implement later
-        return []
-    
-    def get_customers_data(self) -> List[Dict[str, Any]]:
-        """Retrieve customers configuration data."""
-        # Placeholder - will implement later
-        return []
-    
-    def get_distance_matrix(self) -> Dict[str, Dict[str, float]]:
-        """Retrieve the distance matrix between locations."""
-        # Placeholder - will implement later
-        return {}
-    
-    def get_simulation_params(self) -> Dict[str, Any]:
-        """Retrieve simulation parameters."""
-        # Placeholder - will implement later
-        return {}
-    
-    def save_results(self, results: Dict[str, Any]) -> None:
-        """Save simulation results to Databricks."""
-        # Placeholder - will implement later
-        pass
-
-
 def get_data_source(source_type: str, **kwargs) -> DataSource:
     """
     Factory function to create the appropriate data source.
@@ -269,9 +230,34 @@ def get_data_source(source_type: str, **kwargs) -> DataSource:
         data_dir = kwargs.get("data_dir", "./data")
         return JsonDataSource(data_dir)
     elif source_type.lower() == "databricks":
-        connection_string = kwargs.get("connection_string")
-        if not connection_string:
-            raise ValueError("connection_string is required for Databricks data source")
-        return DatabricksDataSource(connection_string)
+        # Check for required parameters
+        host = kwargs.get("host")
+        http_path = kwargs.get("http_path")
+        token = kwargs.get("token")
+        
+        if not all([host, http_path, token]):
+            raise ValueError("host, http_path, and token are required for Databricks data source")
+        
+        # Optional parameters with defaults
+        catalog = kwargs.get("catalog", "hive_metastore")
+        schema = kwargs.get("schema", "default")
+        ships_table = kwargs.get("ships_table", "ships")
+        customers_table = kwargs.get("customers_table", "customers")
+        distances_table = kwargs.get("distances_table", "distances")
+        params_table = kwargs.get("params_table", "simulation_params")
+        results_table = kwargs.get("results_table", "simulation_results")
+        
+        return DatabricksDataSource(
+            host=host,
+            http_path=http_path,
+            token=token,
+            catalog=catalog,
+            schema=schema,
+            ships_table=ships_table,
+            customers_table=customers_table,
+            distances_table=distances_table,
+            params_table=params_table,
+            results_table=results_table
+        )
     else:
         raise ValueError(f"Unknown data source type: {source_type}")
