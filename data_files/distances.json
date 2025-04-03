@@ -1,26 +1,26 @@
 {
   "port_main": {
     "port_main": 0.0,
-    "location_a": 531.5486337355089,
-    "location_b": 627.9060568007077,
-    "location_c": 666.1064716601194
+    "location_a": 450.0,
+    "location_b": 600.0,
+    "location_c": 750.0
   },
   "location_a": {
-    "port_main": 531.5486337355089,
+    "port_main": 450.0,
     "location_a": 0.0,
-    "location_b": 733.9799894250417,
-    "location_c": 482.9597740387295
+    "location_b": 250.0,
+    "location_c": 400.0
   },
   "location_b": {
-    "port_main": 627.9060568007077,
-    "location_a": 733.9799894250417,
+    "port_main": 600.0,
+    "location_a": 250.0,
     "location_b": 0.0,
-    "location_c": 591.0653666016649
+    "location_c": 300.0
   },
   "location_c": {
-    "port_main": 666.1064716601194,
-    "location_a": 482.9597740387295,
-    "location_b": 591.0653666016649,
+    "port_main": 750.0,
+    "location_a": 400.0,
+    "location_b": 300.0,
     "location_c": 0.0
   }
 }
