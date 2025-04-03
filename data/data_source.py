@@ -1,4 +1,5 @@
 # data/data_source.py
+import ipdb
 from typing import Protocol, Dict, Any, List, Optional, Union
 from abc import ABC, abstractmethod
 import json
@@ -15,7 +16,7 @@ import yaml
 import os
 from datetime import datetime
 
-from kedro.io import DataCatalog
+from kedro.io import DataCatalog, KedroDataCatalog
 
 from kedro.io import DataCatalog, MemoryDataset
 
@@ -70,7 +71,7 @@ class KedroCatalogWrapper(DataSource):
             self.catalog_dict = yaml.safe_load(f)
         
         # Create the catalog
-        self.catalog = DataCatalog.from_config(self.catalog_dict)
+        self.catalog = KedroDataCatalog.from_config(self.catalog_dict)
         
         # Set up versioning
         self.scenario_name = scenario_name or f"scenario_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
@@ -91,6 +92,7 @@ class KedroCatalogWrapper(DataSource):
         def load_dataset_from_file(dataset_name, file_name):
             # Try to retrieve the dataset first to check if it's already initialized
             try:
+                ipdb.set_trace()
                 data = self.catalog.load(dataset_name)
                 # If we get here, the dataset exists and has data
                 return
@@ -153,14 +155,29 @@ class KedroCatalogWrapper(DataSource):
                     versions.append(version)
         return versions
     
+
     def get_ships_data(self) -> List[Dict[str, Any]]:
         """Retrieve ships configuration data using Kedro."""
         try:
-            return self.catalog.load("ships")
+            # Try to load with the scenario name if provided
+            if self.scenario_name:
+                try:
+                    data = self.catalog.load("ships", version=self.scenario_name)
+                except:
+                    # Fallback to latest version if named version doesn't exist
+                    data = self.catalog.load("ships")
+            else:
+                data = self.catalog.load("ships")
+            
+            # Convert DataFrame to list of dictionaries if needed
+            if hasattr(data, 'to_dict'):
+                return data.to_dict(orient='records')
+            return data
         except Exception as e:
             print(f"Error loading ships data from Kedro catalog: {e}")
+            # Fall back to a default empty list
             return []
-    
+
     def get_customers_data(self) -> List[Dict[str, Any]]:
         """Retrieve customers configuration data using Kedro."""
         try:

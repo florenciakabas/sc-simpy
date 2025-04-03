@@ -1,17 +1,28 @@
 # catalog.yml
 
-# Just define the datasets without any additional properties
+# Local JSON data sources (versioned)
 ships:
-  type: MemoryDataset
+  type: pandas.JSONDataset  # Updated from json.JSONDataSet
+  filepath: data_files/ships.json
+  versioned: true
 
 customers:
-  type: MemoryDataset
+  type: pandas.JSONDataset
+  filepath: data_files/customers.json
+  versioned: true
 
 distances:
-  type: MemoryDataset
+  type: pandas.JSONDataset
+  filepath: data_files/distances.json
+  versioned: true
 
 simulation_params:
-  type: MemoryDataset
+  type: pandas.JSONDataset
+  filepath: data_files/simulation_params.json
+  versioned: true
 
+# Simulation results (versioned with friendly names)
 simulation_results:
-  type: MemoryDataset
+  type: pandas.JSONDataset
+  filepath: data_files/results.json
+  versioned: true

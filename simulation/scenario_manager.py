@@ -1,4 +1,5 @@
 # simulation/scenario_manager.py
+import ipdb
 from typing import Dict, List, Any, Optional
 import json
 import os
@@ -84,6 +85,7 @@ class ScenarioManager:
         )
         
         # Load the catalog directly to save the parameters
+        ipdb.set_trace()
         with open(self.catalog_config_path, 'r') as f:
             catalog_dict = json.load(f)
         catalog = DataCatalog.from_config(catalog_dict)
