@@ -2,7 +2,7 @@
 from simulation.scenario_manager import ScenarioManager
 
 def main():
-    """Example of using Kedro for scenario management."""
+    """Example of using the scenario manager."""
     print("Supply Chain Simulation Scenario Management")
     print("==========================================\n")
     
@@ -30,11 +30,6 @@ def main():
             "name": "high_threshold",
             "description": "Higher inventory threshold for resupply",
             "params": {"resupply_threshold_days": 5.0}
-        },
-        {
-            "name": "faster_ships",
-            "description": "Ships with 20% higher speed",
-            "params": {"ship_speed_multiplier": 1.2}
         }
     ]
     
@@ -49,14 +44,14 @@ def main():
         manager.run_scenario(name)
     
     # Compare all scenarios
-    scenario_names = ["baseline"] + [s["name"] for s in scenarios]
-    comparison = manager.compare_scenarios(scenario_names)
+    comparison = manager.compare_scenarios(["baseline", "fast_loading", "high_threshold"])
     
     # Print comparison results
     print("\nScenario Comparison:")
     print("===================")
     for name, metrics in comparison["scenarios"].items():
         print(f"\n{name}:")
+        print(f"  Description: {metrics.get('description')}")
         print(f"  Service Level: {metrics.get('overall_service_level', 0):.2%}")
         print(f"  Stockout Events: {metrics.get('total_stockout_events', 0)}")
         if metrics.get("param_overrides"):

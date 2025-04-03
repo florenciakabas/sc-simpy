@@ -1,6 +1,3 @@
-# catalog.yml
-
-# Local JSON data sources (versioned)
 ships:
   type: pandas.JSONDataset  # Updated from json.JSONDataSet
   filepath: data_files/ships.json

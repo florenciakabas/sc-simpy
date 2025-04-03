@@ -1,49 +1,57 @@
 # simulation/scenario_manager.py
-import ipdb
 from typing import Dict, List, Any, Optional
 import json
 import os
 from datetime import datetime
 from pathlib import Path
+import shutil
 
-from kedro.io import DataCatalog
-
-from data.data_source import KedroCatalogWrapper
+from data.data_source import get_data_source
 from simulation.engine import SupplyChainSimulation
-
-import yaml
-
 
 class ScenarioManager:
     """
-    Utility for managing scenarios in the supply chain simulation.
-    Uses Kedro's versioning capabilities for scenario management.
+    Lightweight utility for managing scenarios in the supply chain simulation.
     """
     
-    def __init__(self, catalog_config_path: str = 'catalog.yml'):
+    def __init__(self, data_dir: str = "./data_files"):
         """
         Initialize the scenario manager.
         
         Args:
-            catalog_config_path: Path to the Kedro catalog config
+            data_dir: Directory containing data files
         """
-        self.catalog_config_path = catalog_config_path
+        self.data_dir = Path(data_dir)
+        self.scenarios_dir = self.data_dir / "scenarios"
+        self.metadata_dir = self.data_dir / "metadata"
         
-        # Load catalog for metadata access
-        with open(catalog_config_path, 'r') as f:
-            catalog_dict = yaml.safe_load(f)
-        
-        # Find root data directory from any dataset filepath
-        for dataset in catalog_dict.values():
-            if "filepath" in dataset:
-                data_dir = Path(dataset["filepath"]).parent
-                break
-        else:
-            data_dir = Path("./data_files")
-        
-        # Initialize metadata directory
-        self.metadata_dir = os.path.join(data_dir, ".kedro_metadata")
+        # Create directories if they don't exist
+        os.makedirs(self.scenarios_dir, exist_ok=True)
         os.makedirs(self.metadata_dir, exist_ok=True)
+        
+        # Validate data files
+        self._validate_data_files()
+    
+    def _validate_data_files(self):
+        """Validate that required data files exist and are valid JSON."""
+        required_files = ["ships.json", "customers.json", "distances.json", "simulation_params.json"]
+        
+        for file_name in required_files:
+            file_path = self.data_dir / file_name
+            if not file_path.exists():
+                print(f"Warning: {file_name} does not exist")
+                continue
+            
+            # Check if the file is valid JSON
+            try:
+                with open(file_path, 'r') as f:
+                    json.load(f)
+            except json.JSONDecodeError:
+                print(f"Warning: {file_name} is not valid JSON")
+                # Create a backup of the invalid file
+                backup_path = file_path.with_suffix(f".bak.{datetime.now().strftime('%Y%m%d%H%M%S')}")
+                shutil.copy2(file_path, backup_path)
+                print(f"Created backup of invalid file at {backup_path}")
     
     def create_scenario(
         self, 
@@ -64,44 +72,52 @@ class ScenarioManager:
         Returns:
             Name of the created scenario
         """
-        # Create a data source with the base scenario
-        data_source = KedroCatalogWrapper(
-            catalog_config_path=self.catalog_config_path,
-            scenario_name=base_scenario
-        )
-        
-        # Get the simulation parameters
-        params = data_source.get_simulation_params()
+        # Get base data
+        if base_scenario:
+            # Load parameters from base scenario
+            base_params_file = self.scenarios_dir / f"{base_scenario}_params.json"
+            if base_params_file.exists():
+                try:
+                    with open(base_params_file, 'r') as f:
+                        params = json.load(f)
+                except json.JSONDecodeError:
+                    print(f"Warning: {base_scenario}_params.json is not valid JSON")
+                    # Fall back to default params
+                    data_source = get_data_source("json", data_dir=str(self.data_dir))
+                    params = data_source.get_simulation_params()
+            else:
+                # Fall back to default params
+                data_source = get_data_source("json", data_dir=str(self.data_dir))
+                params = data_source.get_simulation_params()
+        else:
+            # Use default parameters
+            data_source = get_data_source("json", data_dir=str(self.data_dir))
+            params = data_source.get_simulation_params()
         
         # Apply overrides
         if param_overrides:
             for key, value in param_overrides.items():
                 params[key] = value
         
-        # Create a new data source for the target scenario
-        target_data_source = KedroCatalogWrapper(
-            catalog_config_path=self.catalog_config_path,
-            scenario_name=name
-        )
+        # Save params for this scenario
+        scenario_params_file = self.scenarios_dir / f"{name}_params.json"
+        with open(scenario_params_file, 'w') as f:
+            json.dump(params, f, indent=2)
         
-        # Load the catalog directly to save the parameters
-        ipdb.set_trace()
-        with open(self.catalog_config_path, 'r') as f:
-            catalog_dict = json.load(f)
-        catalog = DataCatalog.from_config(catalog_dict)
-        
-        # Save the parameters with the new scenario name
-        catalog.save("simulation_params", params, version_name=name)
-        
-        # Add metadata
-        self.journal.add_metadata("simulation_params", name, {
+        # Save metadata
+        metadata = {
+            "name": name,
             "description": description,
             "base_scenario": base_scenario,
             "param_overrides": param_overrides,
             "created_at": datetime.now().isoformat()
-        })
+        }
         
-        print(f"Created scenario '{name}' based on '{base_scenario or 'latest'}'")
+        metadata_file = self.metadata_dir / f"{name}.json"
+        with open(metadata_file, 'w') as f:
+            json.dump(metadata, f, indent=2)
+        
+        print(f"Created scenario '{name}' based on '{base_scenario or 'default'}'")
         return name
     
     def run_scenario(self, name: str) -> Dict[str, Any]:
@@ -114,15 +130,56 @@ class ScenarioManager:
         Returns:
             Simulation results
         """
-        # Create a data source with the specified scenario
-        data_source = KedroCatalogWrapper(
-            catalog_config_path=self.catalog_config_path,
-            scenario_name=name
-        )
+        # Load parameters for this scenario
+        scenario_params_file = self.scenarios_dir / f"{name}_params.json"
+        if not scenario_params_file.exists():
+            raise ValueError(f"Scenario '{name}' does not exist")
         
-        # Run the simulation
-        simulation = SupplyChainSimulation(data_source)
+        try:
+            with open(scenario_params_file, 'r') as f:
+                params = json.load(f)
+        except json.JSONDecodeError:
+            print(f"Warning: {name}_params.json is not valid JSON")
+            # Use empty params as fallback
+            params = {}
+        
+        # Create data source
+        data_source = get_data_source("json", data_dir=str(self.data_dir))
+        
+        # Run simulation with parameter override
+        simulation = SupplyChainSimulation(data_source, params)
         results = simulation.run()
+        
+        # Save results with scenario name
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        results_file = self.scenarios_dir / f"{name}_results_{timestamp}.json"
+        with open(results_file, 'w') as f:
+            json.dump(results, f, indent=2)
+        
+        # Update metadata with this run
+        metadata_file = self.metadata_dir / f"{name}.json"
+        if metadata_file.exists():
+            try:
+                with open(metadata_file, 'r') as f:
+                    metadata = json.load(f)
+            except json.JSONDecodeError:
+                metadata = {"name": name}
+        else:
+            metadata = {"name": name}
+        
+        # Add run history
+        if "runs" not in metadata:
+            metadata["runs"] = []
+        
+        metadata["runs"].append({
+            "timestamp": timestamp,
+            "results_file": str(results_file),
+            "overall_service_level": results.get("metrics", {}).get("overall_service_level", 0.0),
+            "total_stockout_events": results.get("metrics", {}).get("total_stockout_events", 0)
+        })
+        
+        with open(metadata_file, 'w') as f:
+            json.dump(metadata, f, indent=2)
         
         print(f"Completed simulation for scenario '{name}'")
         return results
@@ -134,28 +191,23 @@ class ScenarioManager:
         Returns:
             List of scenario information
         """
-        # Get all versions of simulation_params
-        try:
-            metadata = self.journal.get_all_metadata("simulation_params")
-            
-            # Format the information
-            scenarios = []
-            for version_name, meta in metadata.items():
-                scenarios.append({
-                    "name": version_name,
-                    "description": meta.get("description", "No description"),
-                    "created_at": meta.get("created_at", "Unknown"),
-                    "param_overrides": meta.get("param_overrides", {})
-                })
-            
-            return scenarios
-        except Exception as e:
-            print(f"Error listing scenarios: {e}")
-            return []
+        scenarios = []
+        
+        for file in os.listdir(self.metadata_dir):
+            if file.endswith(".json"):
+                file_path = self.metadata_dir / file
+                try:
+                    with open(file_path, 'r') as f:
+                        metadata = json.load(f)
+                    scenarios.append(metadata)
+                except json.JSONDecodeError:
+                    print(f"Warning: {file} is not valid JSON")
+        
+        return scenarios
     
     def compare_scenarios(self, scenario_names: List[str]) -> Dict[str, Any]:
         """
-        Compare multiple scenarios based on their results.
+        Compare multiple scenarios based on their latest results.
         
         Args:
             scenario_names: List of scenario names to compare
@@ -166,30 +218,27 @@ class ScenarioManager:
         comparison = {"scenarios": {}}
         
         for name in scenario_names:
-            try:
-                # Try to load results for this scenario
-                with open(self.catalog_config_path, 'r') as f:
-                    catalog_dict = json.load(f)
-                catalog = DataCatalog.from_config(catalog_dict)
-                
-                # Find the latest results for this scenario
-                results_versions = self.journal.get_all_versions("simulation_results")
-                scenario_results = [v for v in results_versions if v.startswith(name)]
-                
-                if scenario_results:
-                    # Get the latest result version
-                    latest_result = sorted(scenario_results)[-1]
-                    results = catalog.load("simulation_results", version_name=latest_result)
+            metadata_file = self.metadata_dir / f"{name}.json"
+            if metadata_file.exists():
+                try:
+                    with open(metadata_file, 'r') as f:
+                        metadata = json.load(f)
                     
-                    # Extract key metrics
-                    comparison["scenarios"][name] = {
-                        "overall_service_level": results.get("metrics", {}).get("overall_service_level", 0),
-                        "total_stockout_events": results.get("metrics", {}).get("total_stockout_events", 0),
-                        "param_overrides": self.journal.get_metadata("simulation_params", name).get("param_overrides", {})
-                    }
-                else:
-                    print(f"No results found for scenario '{name}'")
-            except Exception as e:
-                print(f"Error loading results for scenario '{name}': {e}")
+                    # Get the latest run
+                    if "runs" in metadata and metadata["runs"]:
+                        latest_run = metadata["runs"][-1]
+                        
+                        comparison["scenarios"][name] = {
+                            "description": metadata.get("description", "No description"),
+                            "overall_service_level": latest_run.get("overall_service_level", 0),
+                            "total_stockout_events": latest_run.get("total_stockout_events", 0),
+                            "param_overrides": metadata.get("param_overrides", {})
+                        }
+                    else:
+                        print(f"No runs found for scenario '{name}'")
+                except json.JSONDecodeError:
+                    print(f"Warning: {name}.json is not valid JSON")
+            else:
+                print(f"Scenario '{name}' not found")
         
         return comparison

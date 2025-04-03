@@ -19,6 +19,7 @@ from datetime import datetime
 from kedro.io import DataCatalog, KedroDataCatalog
 
 from kedro.io import DataCatalog, MemoryDataset
+import kedro
 
 class DataSource(ABC):
     """Abstract base class for data sources."""
@@ -85,36 +86,33 @@ class KedroCatalogWrapper(DataSource):
         self._initialize_catalog_from_files()
 
     def _initialize_catalog_from_files(self):
-        """Load data from JSON files if the catalog is empty."""
+        """Load data from JSON files and initialize versioned datasets."""
         data_dir = Path("./data_files")
         
-        # Helper function to check if dataset exists and load data
-        def load_dataset_from_file(dataset_name, file_name):
-            # Try to retrieve the dataset first to check if it's already initialized
-            try:
-                ipdb.set_trace()
-                data = self.catalog.load(dataset_name)
-                # If we get here, the dataset exists and has data
-                return
-            except Exception as e:
-                if not "has already been registered" in str(e):
-                    # Check if the file exists
-                    file_path = data_dir / file_name
-                    if file_path.exists():
+        # Helper function to initialize a versioned dataset
+        def initialize_versioned_dataset(dataset_name, file_path):
+            # Check if the file exists but doesn't have versions yet
+            if dataset_name in self.catalog._datasets and file_path.exists():
+                try:
+                    # Try to load with version parameter (this will likely fail first time)
+                    self.catalog.load(dataset_name)
+                except kedro.io.core.VersionNotFoundError:
+                    # Load the data directly from file
+                    try:
                         with open(file_path, 'r') as f:
                             data = json.load(f)
-                        # Update the existing dataset instead of adding a new one
-                        if dataset_name in self.catalog._datasets:
-                            memory_dataset = self.catalog._datasets[dataset_name]
-                            memory_dataset._data = data
-                        else:
-                            print(f"Warning: Could not initialize {dataset_name}")
+                        
+                        # Save with versioning to create the first version
+                        self.catalog.save(dataset_name, data)
+                        print(f"Created initial version for {dataset_name}")
+                    except Exception as e:
+                        print(f"Error initializing {dataset_name}: {e}")
         
-        # Load data from files
-        load_dataset_from_file("ships", "ships.json")
-        load_dataset_from_file("customers", "customers.json")
-        load_dataset_from_file("distances", "distances.json")
-        load_dataset_from_file("simulation_params", "simulation_params.json")
+        # Initialize versioned datasets
+        initialize_versioned_dataset("ships", data_dir / "ships.json")
+        initialize_versioned_dataset("customers", data_dir / "customers.json")
+        initialize_versioned_dataset("distances", data_dir / "distances.json")
+        initialize_versioned_dataset("simulation_params", data_dir / "simulation_params.json")
 
     def _generate_version(self):
         """Generate a version string based on scenario name and timestamp."""
@@ -154,28 +152,66 @@ class KedroCatalogWrapper(DataSource):
                     version = file[len(prefix):-5]  # Remove prefix and .yaml
                     versions.append(version)
         return versions
-    
+        
+    def get_simulation_params(self) -> Dict[str, Any]:
+        """Retrieve simulation params data using Kedro."""
+        try:
+            # Try to load the dataset
+            data = self.catalog.load("simulation_params")
+            
+            # Convert pandas DataFrame to list of dictionaries if needed
+            if hasattr(data, 'to_dict'):
+                return data.to_dict(orient='records')
+            return data
+        except kedro.io.core.VersionNotFoundError:
+            # Handle case where versions don't exist yet
+            file_path = Path("./data_files/simulation_params.json")
+            if file_path.exists():
+                try:
+                    with open(file_path, 'r') as f:
+                        data = json.load(f)
+                    
+                    # Save the data to create a version
+                    self.catalog.save("simulation_params", data)
+                    return data
+                except Exception as e:
+                    print(f"Error loading simulation params data: {e}")
+            
+            # Fall back to empty list
+            return []
+        except Exception as e:
+            print(f"Error loading simulation params data: {e}")
+            return []
+
 
     def get_ships_data(self) -> List[Dict[str, Any]]:
         """Retrieve ships configuration data using Kedro."""
         try:
-            # Try to load with the scenario name if provided
-            if self.scenario_name:
-                try:
-                    data = self.catalog.load("ships", version=self.scenario_name)
-                except:
-                    # Fallback to latest version if named version doesn't exist
-                    data = self.catalog.load("ships")
-            else:
-                data = self.catalog.load("ships")
+            # Try to load the dataset
+            data = self.catalog.load("ships")
             
-            # Convert DataFrame to list of dictionaries if needed
+            # Convert pandas DataFrame to list of dictionaries if needed
             if hasattr(data, 'to_dict'):
                 return data.to_dict(orient='records')
             return data
+        except kedro.io.core.VersionNotFoundError:
+            # Handle case where versions don't exist yet
+            file_path = Path("./data_files/ships.json")
+            if file_path.exists():
+                try:
+                    with open(file_path, 'r') as f:
+                        data = json.load(f)
+                    
+                    # Save the data to create a version
+                    self.catalog.save("ships", data)
+                    return data
+                except Exception as e:
+                    print(f"Error loading ships data: {e}")
+            
+            # Fall back to empty list
+            return []
         except Exception as e:
-            print(f"Error loading ships data from Kedro catalog: {e}")
-            # Fall back to a default empty list
+            print(f"Error loading ships data: {e}")
             return []
 
     def get_customers_data(self) -> List[Dict[str, Any]]:
@@ -194,13 +230,6 @@ class KedroCatalogWrapper(DataSource):
             print(f"Error loading distance matrix from Kedro catalog: {e}")
             return {}
     
-    def get_simulation_params(self) -> Dict[str, Any]:
-        """Retrieve simulation parameters using Kedro."""
-        try:
-            return self.catalog.load("simulation_params")
-        except Exception as e:
-            print(f"Error loading simulation parameters from Kedro catalog: {e}")
-            return {}
 
     def save_results(self, results: Dict[str, Any]) -> None:
         """Save simulation results using Kedro with versioning."""
