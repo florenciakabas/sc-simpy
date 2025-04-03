@@ -193,6 +193,23 @@ def main():
     
     print("\nSimulation study completed!")
 
+    '''
+    data_source = get_data_source("kedro", scenario_name="baseline")
+    simulation = SupplyChainSimulation(data_source)
+    results = simulation.run()
+    manager = ScenarioManager()
+
+    # Create a scenario with parameter overrides
+    manager.create_scenario(
+        name="fast_ships",
+        description="Increased ship speed scenario",
+        param_overrides={"ship_speed_multiplier": 1.5}
+    )
+
+    # Run this scenario
+    results = manager.run_scenario("fast_ships")
+    # comparison = manager.compare_scenarios(["baseline", "fast_ships", "high_threshold"])
+    '''
 
 if __name__ == "__main__":
     main()

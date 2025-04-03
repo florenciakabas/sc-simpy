@@ -1,26 +1,24 @@
-[
-  {
-    "id": "ship_1",
-    "name": "Vessel Alpha",
-    "capacity": 100000.0,
-    "speed": 25.0,
-    "initial_location": "port_main",
-    "initial_cargo": 80000.0
-  },
-  {
-    "id": "ship_2",
-    "name": "Vessel Beta",
-    "capacity": 75000.0,
-    "speed": 30.0,
-    "initial_location": "port_main",
-    "initial_cargo": 60000.0
-  },
-  {
-    "id": "ship_3",
-    "name": "Vessel Gamma",
-    "capacity": 120000.0,
-    "speed": 20.0,
-    "initial_location": "port_main",
-    "initial_cargo": 100000.0
-  }
-]
+{
+  "id": "ship_1",
+  "name": "Vessel Alpha",
+  "capacity": 100000.0,
+  "speed": 25.0,
+  "initial_location": "port_main",
+  "initial_cargo": 80000.0
+},
+{
+  "id": "ship_2",
+  "name": "Vessel Beta",
+  "capacity": 75000.0,
+  "speed": 30.0,
+  "initial_location": "port_main",
+  "initial_cargo": 60000.0
+},
+{
+  "id": "ship_3",
+  "name": "Vessel Gamma",
+  "capacity": 120000.0,
+  "speed": 20.0,
+  "initial_location": "port_main",
+  "initial_cargo": 100000.0
+}

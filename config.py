@@ -16,3 +16,12 @@ DEFAULT_DATA_SOURCE = "json"
 
 # Data directory for JSON data source
 JSON_DATA_DIR = "./data_files"
+
+# Kedro configuration
+KEDRO_CONFIG = {
+    "catalog_config": "catalog.yml",
+    "default_scenario": "baseline"
+}
+
+# Update DEFAULT_DATA_SOURCE to use Kedro if desired
+DEFAULT_DATA_SOURCE = "kedro"  # Options: "json", "databricks", "kedro"

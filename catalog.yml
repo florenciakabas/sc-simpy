@@ -1,0 +1,17 @@
+# catalog.yml
+
+# Just define the datasets without any additional properties
+ships:
+  type: MemoryDataset
+
+customers:
+  type: MemoryDataset
+
+distances:
+  type: MemoryDataset
+
+simulation_params:
+  type: MemoryDataset
+
+simulation_results:
+  type: MemoryDataset
